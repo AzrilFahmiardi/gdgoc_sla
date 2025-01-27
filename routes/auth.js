@@ -4,6 +4,23 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const pool = require('../models/database');
 
+// Middleware untuk verifikasi token
+const verifyToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Access denied. Token required.' });
+  }
+
+  try {
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified;
+    next();
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -45,7 +62,27 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Simpan token ke database (opsional, untuk blacklist saat logout)
+    await pool.execute(
+      'UPDATE Users SET active_token = ?, updated_at = NOW() WHERE user_id = ?',
+      [token, user.user_id]
+    );
+
     res.json({ token, user_id: user.user_id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/logout', verifyToken, async (req, res) => {
+  try {
+    // Hapus token dari database
+    await pool.execute(
+      'UPDATE Users SET active_token = NULL, updated_at = NOW() WHERE user_id = ?',
+      [req.user.user_id]
+    );
+
+    res.json({ message: 'Successfully logged out' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../models/database');
 const { authenticateToken } = require('../middleware/auth');
 
+// POST /notes/share/:id - Share a note
 router.post('/:id', authenticateToken, async (req, res) => {
   try {
     const { shared_with_email, permission_level } = req.body;
@@ -18,11 +19,15 @@ router.post('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /notes/share - Get all shared notes
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const [sharedNotes] = await pool.execute(
-      `SELECT n.* FROM Notes n
+      `SELECT n.*, sn.permission_level, sn.shared_at, sn.share_id, 
+              u.name as shared_by_name, u.email as shared_by_email
+       FROM Notes n
        JOIN SharedNotes sn ON n.note_id = sn.note_id
+       JOIN Users u ON sn.shared_by_user_id = u.user_id
        WHERE sn.shared_with_email = ?`, 
       [req.user.email]
     );
@@ -33,6 +38,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// DELETE /notes/share/:id/:share_id - Revoke sharing
 router.delete('/:id/:share_id', authenticateToken, async (req, res) => {
   try {
     const [result] = await pool.execute(

@@ -51,14 +51,29 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { title, content, tags, folder, is_pinned } = req.body;
 
-    const [result] = await pool.execute(
-      'UPDATE Notes SET title = ?, content = ?, tags = ?, folder = ?, is_pinned = ?, updated_at = NOW() WHERE note_id = ? AND user_id = ?',
-      [title, content, JSON.stringify(tags), folder, is_pinned, req.params.id, req.user.user_id]
+    // Get existing note first
+    const [existingNote] = await pool.execute(
+      'SELECT * FROM Notes WHERE note_id = ? AND user_id = ?',
+      [req.params.id, req.user.user_id]
     );
 
-    if (result.affectedRows === 0) {
+    if (existingNote.length === 0) {
       return res.status(404).json({ error: 'Note not found or unauthorized' });
     }
+
+    // Use existing values if not provided in request
+    const updatedNote = {
+      title: title ?? existingNote[0].title,
+      content: content ?? existingNote[0].content,
+      tags: tags ? JSON.stringify(tags) : existingNote[0].tags,
+      folder: folder ?? existingNote[0].folder,
+      is_pinned: is_pinned ?? existingNote[0].is_pinned
+    };
+
+    const [result] = await pool.execute(
+      'UPDATE Notes SET title = ?, content = ?, tags = ?, folder = ?, is_pinned = ?, updated_at = NOW() WHERE note_id = ? AND user_id = ?',
+      [updatedNote.title, updatedNote.content, updatedNote.tags, updatedNote.folder, updatedNote.is_pinned, req.params.id, req.user.user_id]
+    );
 
     res.json({ message: 'Note updated successfully' });
   } catch (error) {
