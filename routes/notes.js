@@ -21,7 +21,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const [result] = await pool.execute(
       'INSERT INTO Notes (user_id, title, content, tags, folder, is_pinned, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [req.user.user_id, title, content, JSON.stringify(tags), folder, is_pinned || false]
+      [req.user.user_id, title, content, JSON.stringify(tags), folder || false, is_pinned || false]
     );
 
     res.status(201).json({ note_id: result.insertId });
