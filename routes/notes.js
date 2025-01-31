@@ -9,7 +9,14 @@ router.get('/', authenticateToken, async (req, res) => {
       'SELECT * FROM Notes WHERE user_id = ? ORDER BY created_at DESC', 
       [req.user.user_id]
     );
-    res.json(notes);
+    
+    // Parse tags untuk setiap catatan
+    const parsedNotes = notes.map(note => ({
+      ...note,
+      tags: JSON.parse(note.tags)
+    }));
+    
+    res.json(parsedNotes);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -19,9 +26,17 @@ router.post('/', authenticateToken, async (req, res) => {
   try {
     const { title, content, tags, folder, is_pinned } = req.body;
 
+    // Validasi input
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    // Pastikan tags adalah array
+    const validTags = Array.isArray(tags) ? tags : [];
+
     const [result] = await pool.execute(
       'INSERT INTO Notes (user_id, title, content, tags, folder, is_pinned, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
-      [req.user.user_id, title, content, JSON.stringify(tags), folder || false, is_pinned || false]
+      [req.user.user_id, title, content, JSON.stringify(validTags), folder || false, is_pinned || false]
     );
 
     res.status(201).json({ note_id: result.insertId });
@@ -41,7 +56,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    res.json(notes[0]);
+    // Parse tags untuk catatan tunggal
+    const parsedNote = {
+      ...notes[0],
+      tags: JSON.parse(notes[0].tags)
+    };
+
+    res.json(parsedNote);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
