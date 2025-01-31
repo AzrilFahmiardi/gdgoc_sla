@@ -1,5 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
+const cors = require('cors');
+
 const authRoutes = require('./routes/auth');
 const noteRoutes = require('./routes/notes');
 const sharingRoutes = require('./routes/sharing');
@@ -7,6 +9,7 @@ const sharingRoutes = require('./routes/sharing');
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // Routes
